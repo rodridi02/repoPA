@@ -1,0 +1,33 @@
+
+(defproblem problem parte2
+	(; initial state
+		(DRON d1)
+		(LOCALIZACION loca) 
+		(LOCALIZACION locb) 
+		(LOCALIZACION deposito)
+		(CONTENIDO comida) 
+		(CONTENIDO medicina)
+		(TRANSPORTADOR t1)
+		
+		(es_deposito deposito)
+		(libre d1)
+		(en_loc_d d1 deposito)
+
+		(contenido_en food deposit 8)
+		(contenido_en medicine deposit 5)
+		
+		(necesidad_con comida loca 1)
+		(necesidad_con medicina loca 2)
+		(necesidad_con comida locb 7)
+		(necesidad_con medicina locb 3)
+		
+		(capacidad t1 3)
+		(transport t1 0 0)
+		
+		
+	)
+		
+	(; task to solve
+		(enviar_todo medicina comida)
+	)
+)
