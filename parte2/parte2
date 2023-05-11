@@ -1,0 +1,276 @@
+(defdomain parte2 (
+    
+  (:operator (!moverDron ?d ?desde ?hasta)
+     ((DRON ?d) (LOCALIZACION ?desde) (LOCALIZACION ?hasta) (en_loc_d ?d ?desde)) ;prec
+     ((en_loc_d ?d ?desde)) ;delete
+     ((en_loc_d ?d ?hasta));add
+     50
+   )
+
+  (:operator (!cogerCaja ?d ?l ?con)
+     (
+        (DRON ?d) (LOCALIZACION ?l) (CONTENIDO ?con)
+        (contenido_en ?con ?l ?cant)
+        (libre ?d)
+     ) ;prec
+     (
+         (libre ?d) 
+         (contenido_en ?con ?l ?cant)
+      ) ;delete
+     (
+         (lleva_con ?d ?con)
+         (contenido_en ?con ?l (call - ?cant 1))
+      );add
+      0
+   ) 
+   ;Preparar el transportador sin mirar la capacidad debido a que no se supera la capacidad
+   (:operator (!prepararTransportador1 ?d ?t ?con1 ?con2 ?l1 ?l2)
+      (
+         (DRON ?d) (TRANSPORTADOR ?t) (LOCALIZACION ?l1) (LOCALIZACION ?l2) (CONTENIDO ?con1) (CONTENIDO ?con2)
+         (contenido_en ?con1 ?l1 ?n1)
+         (capacidad ?t ?cap)
+         (contenido_en ?con2 ?l1 ?n2)
+         (necesidad_con ?l2 ?con1 ?cant1)
+         (necesidad_con ?l2 ?con2 ?cant2)
+         (transport ?t ?carga1 ?carga2)
+         (libre ?d)
+      );prec
+      (
+         (libre ?d)
+         (contenido_en ?con1 ?l1 ?n1)
+         (contenido_en ?con2 ?l1 ?n2)
+         (transport ?t ?carga1 ?carga2)
+      );delete
+      (
+         (lleva ?d ?t)
+         (contenido_en ?con1 ?l1 (call - ?n1 ?cant1))
+         (contenido_en ?con2 ?l1 (call - ?n2 ?cant2))
+         (transport ?t ?cant1 ?cant2)
+      );add
+      ?cap
+   )
+   ;Operador cuando solo se pueda rellernar con el máximo de un contenido y lo que falte con el otro
+   (:operator (!prepararTransportador2 ?d ?t ?con1 ?con2 ?l1 ?l2)
+      (
+         (DRON ?d) (TRANSPORTADOR ?t) (LOCALIZACION ?l1) (LOCALIZACION ?l2) (CONTENIDO ?con1) (CONTENIDO ?con2)
+         (contenido_en ?con1 ?l1 ?n1)
+         (contenido_en ?con2 ?l1 ?n2)
+         (necesidad_con ?l2 ?con1 ?cant1)
+         (necesidad_con ?l2 ?con2 ?cant2)
+         (libre ?d)
+         (capacidad ?t ?cap)
+         (transport ?t ?carga1 ?carga2)
+      );prec
+
+      (
+         (libre ?d)
+         (contenido_en ?con1 ?l1 ?n1)
+         (contenido_en ?con2 ?l1 ?n2)
+         (transport ?t ?carga1 ?carga2)
+      );del
+      (
+         (lleva ?d ?t)
+         (contenido_en ?con1 ?l1 (call - ?n1 ?cant1))
+         (contenido_en ?con2 ?l1 (call - ?n2 (call - ?cap ?cant1)))
+      
+         (transport ?t ?cant1  (call - ?cap ?cant1))
+      );add
+      ?cap
+   )
+   ;Solo un contenido llena el transportador
+   (:operator (!prepararTransportador3 ?d ?t ?con ?l1 ?l2)
+      (
+         (DRON ?d) (TRANSPORTADOR ?t) (LOCALIZACION ?l1) (LOCALIZACION ?l2) (CONTENIDO ?con1) (CONTENIDO ?con2)
+         (contenido_en ?con1 ?l1 ?n1)
+         (necesidad_con ?l2 ?con ?cant1)
+         (libre ?d)
+         (capacidad ?t ?cap)
+         (transport ?t ?carga1 ?carga2)
+      );prec
+
+      (
+         (libre ?d)
+         (contenido_en ?con1 ?l1 ?n1)
+         (transport ?t ?carga1 ?carga2)
+      );del
+      (
+         (lleva ?d ?t)
+         (contenido_en ?con1 ?l1 (call - ?n1 ?cant1))
+         (transport ?t ?cant1 ?carga2)
+      );add
+      ?cap
+   )
+   
+   (:operator (!descargarTransportador ?d ?t ?l ?con1 ?con2)
+   (
+      (DRON ?d) (TRANSPORTADOR ?t) (LOCALIZACION ?l) (CONTENIDO ?con1) (CONTENIDO ?con2)
+      (en_loc_d ?d ?l)
+      (lleva ?d ?t)
+      (necesidad_con ?l ?con1 ?cant1)
+      (necesidad_con ?l ?con2 ?cant2)
+      (necesidad_loc ?l ?n)
+      (transport ?t ?carga1 ?carga2)
+   );pre
+   (
+      (necesidad_loc ?l ?n)
+      (necesidad_con ?l ?con1 ?cant1)
+      (necesidad_con ?l ?con2 ?cant2)
+      (transport ?t ?carga1 ?carga2)
+   );del
+   (
+      (necesidad_loc ?l (call + ?carga1 ?carga2))
+      (necesidad_con ?l ?con1 (call - ?cant1 ?carga1))
+      (necesidad_con ?l ?con2 (call - ?cant2 ?carga2))
+      (transport ?t (call - ?carga1 ?carga1) (call - ?carga2 ?carga2))
+   );add
+   0
+  )
+   
+  (:operator (!entregarCaja ?d ?l ?con)
+     (
+         (DRON ?d) (LOCALIZACION ?l) (CONTENIDO ?con)
+         (lleva_con ?d ?con) 
+         (en_loc_d ?d ?l)
+         (necesidad_con ?l ?con ?cant1)
+         (necesidad_loc ?l ?cant2)   
+      ) ;prec
+     (
+         (lleva ?d ?con) 
+         (necesidad_con ?l ?con ?cant1)
+         (necesidad_loc ?l ?cant2) 
+      ) ;delete
+     (
+         (libre ?d)
+         (necesidad_con ?l ?con (call - ?cant1 1))
+         (necesidad_loc ?l (call - ?cant2 1)) 
+      );add
+      0
+   )   
+
+   (:method (enviar ?con1 ?con2 ?l)
+
+      ;solo se necesita un contenido en la localizacion
+      (
+         (DRON ?d) (CONTENIDO ?con1 ) (CONTENIDO ?con2) (LOCALIZACION ?hasta) (LOCALIZACION ?desde)
+         (libre ?d)
+         (es_deposito ?desde)
+         (en_loc_d ?d ?desde)
+         (contenido_en ?cont1 ?desde ?cant) (call >= ?cant 1)
+         (necesidad_con ?hasta ?con1 ?n1) (call = ?n1 1)
+         (necesidad_con ?hasta ?con2 ?n2) (call = ?n2 0)
+      );prec
+      (
+         (!cogerCaja ?d ?desde ?con1)
+         (!moverDron ?d ?desde ?hasta)
+         (!entregarCaja ?d ?hasta ?con1)
+         (!moverDron ?d ?hasta ?desde)
+      );subtask
+      ;el otro contenido
+      (
+         (DRON ?d) (CONTENIDO ?con1 ) (CONTENIDO ?con2) (LOCALIZACION ?hasta) (LOCALIZACION ?desde)
+         (libre ?d)
+         (es_deposito ?desde)
+         (en_loc_d ?d ?desde)
+         (contenido_en ?cont2 ?desde ?cant) (call >= ?cant 1)
+         (necesidad_con ?hasta ?con1 ?n1) (call = ?n1 0)
+         (necesidad_con ?hasta ?con2 ?n2) (call = ?n2 1)
+      );prec
+      (
+         (!cogerCaja ?d ?desde ?con2)
+         (!moverDron ?d ?desde ?hasta)
+         (!entregarCaja ?d ?hasta ?con2)
+         (!moverDron ?d ?hasta ?desde)
+      );subtask
+      ;que las necesidades del destino quepan en el transportador
+      (
+         (DRON ?d) (CONTENIDO ?con1) (CONTENIDO ?con2) (LOCALIZACION ?hasta) (LOCALIZACION ?desde)
+         (libre ?d)
+         (es_deposito ?desde)
+         (en_loc_d ?desde)
+         (capacidad ?t ?cap)
+         (necesidad_con ?hasta ?con1 ?n1)
+         (necesidad_con ?hasta ?con2 ?n2)
+         (call >= ?cap (call + ?n1 ?n2)) ;que la suma de la carga con la necesidad no sea mayor que la capacidad
+         
+      );prec
+      (
+         (!prepararTransportador1 ?d ?t ?con1 ?con2 ?desde ?hasta)
+         (!moverDron ?d ?desde ?hasta)
+         (!descargarTransportado ?d ?t ?hasta ?con1 ?con2)
+         (!moverDron ?d ?hasta ?desde)
+      );subtask
+      
+      ;que un contenido quepa y el otro a medias
+      (
+         (DRON ?d) (CONTENIDO ?con1) (CONTENIDO ?con2) (LOCALIZACION ?hasta) (LOCALIZACION ?desde)
+         (libre ?d)
+         (es_deposito ?desde)
+         (en_loc_d ?desde)
+         (capacidad ?t ?cap)
+         (necesidad_con ?hasta ?con1 ?n1)
+         (necesidad_con ?hasta ?con2 ?n2)
+         (call >= ?cap ?n1)
+         (call >= ?(call + ?n1 ?n2) ?cap)
+         
+      );prec
+      (
+         (!prepararTransportador2 ?d ?t ?con1 ?con2 ?desde ?hasta)
+         (!moverDron ?d ?desde ?hasta)
+         (!descargarTransportado ?d ?t ?hasta ?con1 ?con2)
+         (!moverDron ?d ?hasta ?desde)
+      );subtask
+      
+
+      ;que el un contenido utilice todo el transportador
+      (
+         (DRON ?d) (CONTENIDO ?con1 ) (CONTENIDO ?con2) (LOCALIZACION ?hasta) (LOCALIZACION ?desde) (TRANSPORTADOR ?t)
+         (libre ?d)
+         (es_deposito ?desde)
+         (en_loc_d ?d ?desde)
+         (capacidad ?t ?cap) 
+         (necesidad_con ?hasta ?con1 ?n1) (call >= ?n1 ?cap)
+      );prec
+      (
+         (!prepararTransportador3 ?d ?t ?con1 ?desde ?hasta)
+         (!moverDron ?d ?desde ?hasta)
+         (!descargarTransportador ?d ?t ?hasta ?con1 ?con2)
+         (!moverDron ?d ?hasta ?desde)
+      );subtask
+
+
+      ;que el otro contenido utilice todo el transportador
+      (
+         (DRON ?d) (CONTENIDO ?con1 ) (CONTENIDO ?con2) (LOCALIZACION ?hasta) (LOCALIZACION ?desde) (TRANSPORTADOR ?t)
+         (libre ?d)
+         (es_deposito ?desde)
+         (en_loc_d ?d ?desde)
+         (capacidad ?t ?cap) 
+         (necesidad_con ?hasta ?con2 ?n1) (call >= ?n1 ?cap)
+      );prec
+      (
+         (!prepararTransportador3 ?d ?t ?con2 ?desde ?hasta)
+         (!moverDron ?d ?desde ?hasta)
+         (!descargarTransportador ?d ?t ?hasta ?con1 ?con2)
+         (!moverDron ?d ?hasta ?desde)
+      );subtask  
+
+   )
+
+   (:method (enviar_todo ?c1 ?c2)
+         (
+            (DRON ?d) (CONTENIDO ?c1) (CONTENIDO ?c2) (LOCALIZACION ?l)
+            (necesidad_loc ?l ?n) (call > ?n 0)
+         );pre
+         (
+            (enviar ?c1 ?c2 ?l)
+            (enviar_todo)
+         )
+         (
+            ()
+         )
+         (
+            ()
+         )
+   )
+
+))
